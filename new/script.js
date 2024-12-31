@@ -726,23 +726,23 @@ window.HighchartsCloud = {
 // Configuration for annotation positioning
 const CONFIG = {
   SPACING: {
-    MIN_VERTICAL: 5,
-    MIN_HORIZONTAL: 5,
-    EDGE_BUFFER: 5,
+    MIN_VERTICAL: 10,
+    MIN_HORIZONTAL: 10,
+    EDGE_BUFFER: 10,
   },
   COLLISION: {
     MAX_ITERATIONS: 50,
-    MOVE_STEP: 5,
-    // DIRECTIONS: [
-    //   { x: 1, y: 0 },
-    //   { x: -1, y: 0 },
-    //   { x: 0, y: 1 },
-    //   { x: 0, y: -1 },
-    //   { x: 1, y: 1 },
-    //   { x: -1, y: 1 },
-    //   { x: 1, y: -1 },
-    //   { x: -1, y: -1 },
-    // ],
+    MOVE_STEP: 10,
+    DIRECTIONS: [
+      { x: 1, y: 0 }, // Right
+      { x: -1, y: 0 }, // Left
+      { x: 0, y: 1 }, // Down
+      { x: 0, y: -1 }, // Up
+      { x: 1, y: 1 }, // Down-right
+      { x: -1, y: 1 }, // Down-left
+      { x: 1, y: -1 }, // Up-right
+      { x: -1, y: -1 }, // Up-left
+    ],
   },
 };
 
@@ -789,18 +789,51 @@ function handleAnnotationPositioning(chart) {
       const labelA = labels[i];
       const posA = labelData.get(labelA);
 
+      // Clamp the position of labelA to ensure it stays within bounds
+      posA.x = clamp(
+        posA.x,
+        plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
+        plotBounds.right - posA.width - CONFIG.SPACING.EDGE_BUFFER
+      );
+      posA.y = clamp(
+        posA.y,
+        plotBounds.top + CONFIG.SPACING.EDGE_BUFFER,
+        plotBounds.bottom - posA.height - CONFIG.SPACING.EDGE_BUFFER
+      );
+
       for (let j = i + 1; j < labels.length; j++) {
         const labelB = labels[j];
         const posB = labelData.get(labelB);
 
         if (checkCollision(posA, posB)) {
           hasCollision = true;
-          // Set draggable to true for both labels
-          labelA.draggable = true;
-          labelB.draggable = true;
 
-          // Resolve collision
-          resolveCollisionWithoutAnchors(posA, posB, plotBounds);
+          // Attempt to resolve collision using directions
+          let resolved = false;
+          for (const dir of CONFIG.COLLISION.DIRECTIONS) {
+            const newPosA = {
+              x: posA.x + dir.x * CONFIG.COLLISION.MOVE_STEP,
+              y: posA.y + dir.y * CONFIG.COLLISION.MOVE_STEP,
+              width: posA.width,
+              height: posA.height,
+            };
+
+            // Check if the new position is within bounds and does not collide with labelB
+            if (
+              isWithinBounds(newPosA, plotBounds) &&
+              !checkCollision(newPosA, posB)
+            ) {
+              posA.x = newPosA.x;
+              posA.y = newPosA.y;
+              resolved = true;
+              break; // Break out of the direction loop if resolved
+            }
+          }
+
+          if (!resolved) {
+            // Fallback to the original collision resolution if no direction worked
+            resolveCollisionWithoutAnchors(posA, posB, plotBounds);
+          }
         }
       }
     }
@@ -815,11 +848,6 @@ function handleAnnotationPositioning(chart) {
       visibility: "visible",
       zIndex: 1000,
     });
-
-    // Reset draggable property after handling
-    if (label.draggable) {
-      label.draggable = null; // Reset draggable after handling
-    }
   });
 }
 
@@ -882,12 +910,6 @@ function resolveCollisionWithoutAnchors(posA, posB, plotBounds) {
   }
 }
 
-function getDistanceFromAnchor(pos) {
-  const dx = pos.x - pos.anchorX;
-  const dy = pos.y - pos.anchorY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
 function isWithinBounds(pos, bounds) {
   return (
     pos.x >= bounds.left + CONFIG.SPACING.EDGE_BUFFER &&
@@ -899,40 +921,6 @@ function isWithinBounds(pos, bounds) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
-}
-
-function adjustAnchorLines(chart, labelData) {
-  console.log("labelData", labelData);
-  if (!chart?.annotations?.length) return;
-
-  chart.annotations.forEach((annotation) => {
-    annotation.labels.forEach((label) => {
-      if (label.shape === "evervizCallout" && labelData.has(label)) {
-        const pos = labelData.get(label);
-        const anchorX = pos.anchorX;
-        const anchorY = pos.anchorY;
-        const labelBBox = label.graphic.getBBox();
-
-        label.graphic.attr({ x: pos.x, y: pos.y });
-
-        if (
-          label.controlPoints &&
-          label.controlPoints.length === 2 &&
-          label.controlPoints[0].graphic &&
-          label.controlPoints[1].graphic
-        ) {
-          label.controlPoints[0].graphic.attr({
-            x: chart.plotLeft + chart.xAxis[0].toPixels(anchorX),
-            y: chart.plotTop + chart.yAxis[0].toPixels(anchorY),
-          });
-          label.controlPoints[1].graphic.attr({
-            x: pos.x + labelBBox.width / 2,
-            y: pos.y + labelBBox.height / 2,
-          });
-        }
-      }
-    });
-  });
 }
 
 function addAnnotationHandling(options) {
