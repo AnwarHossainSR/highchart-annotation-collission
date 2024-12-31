@@ -1,0 +1,1 @@
+# highchart-annotation-collission
