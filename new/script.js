@@ -808,30 +808,12 @@ function handleAnnotationPositioning(chart) {
         if (checkCollision(posA, posB)) {
           hasCollision = true;
 
-          // Attempt to resolve collision using directions
-          let resolved = false;
-          for (const dir of CONFIG.COLLISION.DIRECTIONS) {
-            const newPosA = {
-              x: posA.x + dir.x * CONFIG.COLLISION.MOVE_STEP,
-              y: posA.y + dir.y * CONFIG.COLLISION.MOVE_STEP,
-              width: posA.width,
-              height: posA.height,
-            };
-
-            // Check if the new position is within bounds and does not collide with labelB
-            if (
-              isWithinBounds(newPosA, plotBounds) &&
-              !checkCollision(newPosA, posB)
-            ) {
-              posA.x = newPosA.x;
-              posA.y = newPosA.y;
-              resolved = true;
-              break; // Break out of the direction loop if resolved
-            }
-          }
-
-          if (!resolved) {
-            // Fallback to the original collision resolution if no direction worked
+          // Check if either label is draggable
+          if (labelA.draggable || labelB.draggable) {
+            // Allow dragging to resolve collision
+            continue; // Skip automatic resolution
+          } else {
+            // Automatically resolve collision
             resolveCollisionWithoutAnchors(posA, posB, plotBounds);
           }
         }
@@ -849,6 +831,45 @@ function handleAnnotationPositioning(chart) {
       zIndex: 1000,
     });
   });
+
+  // Add event listeners for dragging
+  labels.forEach((label) => {
+    if (label.draggable) {
+      label.graphic.on("mousedown", function (event) {
+        const startX = event.chartX;
+        const startY = event.chartY;
+
+        const onMouseMove = (moveEvent) => {
+          const dx = moveEvent.chartX - startX;
+          const dy = moveEvent.chartY - startY;
+
+          labelData.get(label).x += dx;
+          labelData.get(label).y += dy;
+
+          label.graphic.attr({
+            x: labelData.get(label).x,
+            y: labelData.get(label).y,
+          });
+
+          console.log(labelData.get(label).x, labelData.get(label).y);
+
+          // Update start positions for next move
+          startX = moveEvent.chartX;
+          startY = moveEvent.chartY;
+        };
+
+        const onMouseUp = () => {
+          // Remove event listeners when dragging ends
+          Highcharts.removeEventListener(document, "mousemove", onMouseMove);
+          Highcharts.removeEventListener(document, "mouseup", onMouseUp);
+        };
+
+        // Add event listeners for dragging
+        Highcharts.addEventListener(document, "mousemove", onMouseMove);
+        Highcharts.addEventListener(document, "mouseup", onMouseUp);
+      });
+    }
+  });
 }
 
 function checkCollision(posA, posB) {
@@ -861,52 +882,55 @@ function checkCollision(posA, posB) {
 }
 
 function resolveCollisionWithoutAnchors(posA, posB, plotBounds) {
-  const centerA = { x: posA.x + posA.width / 2, y: posA.y + posA.height / 2 };
-  const centerB = { x: posB.x + posB.width / 2, y: posB.y + posB.height / 2 };
-
-  const dx = centerB.x - centerA.x;
-  const dy = centerB.y - centerA.y;
-  const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-
   // Calculate the minimum required distance to avoid collision
   const minDistance =
     (posA.width + posB.width) / 2 + CONFIG.SPACING.MIN_HORIZONTAL;
 
-  // If they are overlapping, we need to move them apart
-  if (distance < minDistance) {
-    const nx = dx / distance; // Normalized x direction
-    const ny = dy / distance; // Normalized y direction
+  // Check if the labels are overlapping
+  if (checkCollision(posA, posB)) {
+    // Calculate the center positions of the labels
+    const centerA = { x: posA.x + posA.width / 2, y: posA.y + posA.height / 2 };
+    const centerB = { x: posB.x + posB.width / 2, y: posB.y + posB.height / 2 };
+
+    const dx = centerB.x - centerA.x;
+    const dy = centerB.y - centerA.y;
+    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
 
     // Calculate how much to move the labels apart
     const overlap = minDistance - distance;
 
-    // Move the labels away from each other
-    posA.x -= (overlap / 2) * nx; // Move label A left/right
-    posA.y -= (overlap / 2) * ny; // Move label A up/down
-    posB.x += (overlap / 2) * nx; // Move label B right/left
-    posB.y += (overlap / 2) * ny; // Move label B down/up
+    if (overlap > 0) {
+      const nx = dx / distance; // Normalized x direction
+      const ny = dy / distance; // Normalized y direction
 
-    // Ensure labels stay within plot bounds
-    posA.x = clamp(
-      posA.x,
-      plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
-      plotBounds.right - posA.width - CONFIG.SPACING.EDGE_BUFFER
-    );
-    posA.y = clamp(
-      posA.y,
-      plotBounds.top + CONFIG.SPACING.EDGE_BUFFER,
-      plotBounds.bottom - posA.height - CONFIG.SPACING.EDGE_BUFFER
-    );
-    posB.x = clamp(
-      posB.x,
-      plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
-      plotBounds.right - posB.width - CONFIG.SPACING.EDGE_BUFFER
-    );
-    posB.y = clamp(
-      posB.y,
-      plotBounds.top + CONFIG.SPACING.EDGE_BUFFER,
-      plotBounds.bottom - posB.height - CONFIG.SPACING.EDGE_BUFFER
-    );
+      // Move the labels away from each other
+      posA.x -= (overlap / 2) * nx; // Move label A left/right
+      posA.y -= (overlap / 2) * ny; // Move label A up/down
+      posB.x += (overlap / 2) * nx; // Move label B right/left
+      posB.y += (overlap / 2) * ny; // Move label B down/up
+
+      // Ensure labels stay within plot bounds
+      posA.x = clamp(
+        posA.x,
+        plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
+        plotBounds.right - posA.width - CONFIG.SPACING.EDGE_BUFFER
+      );
+      posA.y = clamp(
+        posA.y,
+        plotBounds.top + CONFIG.SPACING.EDGE_BUFFER,
+        plotBounds.bottom - posA.height - CONFIG.SPACING.EDGE_BUFFER
+      );
+      posB.x = clamp(
+        posB.x,
+        plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
+        plotBounds.right - posB.width - CONFIG.SPACING.EDGE_BUFFER
+      );
+      posB.y = clamp(
+        posB.y,
+        plotBounds.top + CONFIG.SPACING.EDGE_BUFFER,
+        plotBounds.bottom - posB.height - CONFIG.SPACING.EDGE_BUFFER
+      );
+    }
   }
 }
 
