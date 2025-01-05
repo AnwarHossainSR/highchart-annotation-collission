@@ -682,6 +682,7 @@ function resizeChart(chart) {
   window.addEventListener("resize", setHeight);
 
   setHeight();
+  handleAnnotationPositioning(chart);
 }
 
 const chartWidth = options && options.chart && options.chart.width;
@@ -723,32 +724,38 @@ window.HighchartsCloud = {
   ],
 };
 
-// Configuration for annotation positioning
+// Define configuration constants for annotation positioning
 const CONFIG = {
   SPACING: {
-    MIN_VERTICAL: 10,
-    MIN_HORIZONTAL: 10,
-    EDGE_BUFFER: 10,
+    MIN_VERTICAL: 10, // Minimum vertical space between annotations
+    MIN_HORIZONTAL: 10, // Minimum horizontal space between annotations
+    EDGE_BUFFER: 10, // Minimum space from plot edges
   },
   COLLISION: {
-    MAX_ITERATIONS: 50,
-    MOVE_STEP: 10,
+    MAX_ITERATIONS: 50, // Maximum attempts to resolve collisions
+    MOVE_STEP: 10, // Distance to move labels during collision resolution
     DIRECTIONS: [
-      { x: 1, y: 0 }, // Right
-      { x: -1, y: 0 }, // Left
-      { x: 0, y: 1 }, // Down
-      { x: 0, y: -1 }, // Up
-      { x: 1, y: 1 }, // Down-right
-      { x: -1, y: 1 }, // Down-left
-      { x: 1, y: -1 }, // Up-right
-      { x: -1, y: -1 }, // Up-left
+      { x: 1, y: 0 }, // Right movement
+      { x: -1, y: 0 }, // Left movement
+      { x: 0, y: 1 }, // Down movement
+      { x: 0, y: -1 }, // Up movement
+      { x: 1, y: 1 }, // Down-right diagonal
+      { x: -1, y: 1 }, // Down-left diagonal
+      { x: 1, y: -1 }, // Up-right diagonal
+      { x: -1, y: -1 }, // Up-left diagonal
     ],
   },
 };
 
+/**
+ * Main function to handle positioning of annotations on the chart
+ * @param {Object} chart - The chart object containing annotations
+ */
 function handleAnnotationPositioning(chart) {
+  // Exit if no annotations exist
   if (!chart?.annotations?.length) return;
 
+  // Define the boundaries of the plot area
   const plotBounds = {
     left: chart.plotLeft,
     right: chart.plotLeft + chart.plotWidth,
@@ -756,10 +763,12 @@ function handleAnnotationPositioning(chart) {
     bottom: chart.plotTop + chart.plotHeight,
   };
 
+  // Extract all label objects from annotations and filter out invalid ones
   const labels = chart.annotations
     .reduce((acc, annotation) => acc.concat(annotation.labels), [])
     .filter((label) => label?.graphic);
 
+  // Create a Map storing position and dimension data for each label
   const labelData = new Map(
     labels.map((label) => {
       const bbox = label.graphic.getBBox();
@@ -771,25 +780,27 @@ function handleAnnotationPositioning(chart) {
           y: pos.y,
           width: bbox.width,
           height: bbox.height,
-          anchorX: label.options.point.x, // Store anchor position
-          anchorY: label.options.point.y, // Store anchor position
+          anchorX: label.options.point.x, // Original anchor point X
+          anchorY: label.options.point.y, // Original anchor point Y
         },
       ];
     })
   );
 
-  // Collision Resolution Loop
+  // Main collision resolution loop
   for (
     let iteration = 0;
     iteration < CONFIG.COLLISION.MAX_ITERATIONS;
     iteration++
   ) {
     let hasCollision = false;
+
+    // Check each label against all other labels
     for (let i = 0; i < labels.length; i++) {
       const labelA = labels[i];
       const posA = labelData.get(labelA);
 
-      // Clamp the position of labelA to ensure it stays within bounds
+      // Ensure label stays within plot bounds
       posA.x = clamp(
         posA.x,
         plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
@@ -801,14 +812,16 @@ function handleAnnotationPositioning(chart) {
         plotBounds.bottom - posA.height - CONFIG.SPACING.EDGE_BUFFER
       );
 
+      // Compare with all subsequent labels
       for (let j = i + 1; j < labels.length; j++) {
         const labelB = labels[j];
         const posB = labelData.get(labelB);
 
+        // If collision detected, attempt to resolve
         if (checkCollision(posA, posB)) {
           hasCollision = true;
 
-          // Attempt to resolve collision using directions
+          // Try different directions to resolve collision
           let resolved = false;
           for (const dir of CONFIG.COLLISION.DIRECTIONS) {
             const newPosA = {
@@ -818,7 +831,7 @@ function handleAnnotationPositioning(chart) {
               height: posA.height,
             };
 
-            // Check if the new position is within bounds and does not collide with labelB
+            // Check if new position is valid
             if (
               isWithinBounds(newPosA, plotBounds) &&
               !checkCollision(newPosA, posB)
@@ -826,20 +839,22 @@ function handleAnnotationPositioning(chart) {
               posA.x = newPosA.x;
               posA.y = newPosA.y;
               resolved = true;
-              break; // Break out of the direction loop if resolved
+              break;
             }
           }
 
+          // Use fallback resolution if directional movement failed
           if (!resolved) {
-            // Fallback to the original collision resolution if no direction worked
             resolveCollisionWithoutAnchors(posA, posB, plotBounds);
           }
         }
       }
     }
-    if (!hasCollision) break; // Exit early if no more collisions
+    // Exit loop if no collisions found
+    if (!hasCollision) break;
   }
 
+  // Update final positions of all labels
   labels.forEach((label) => {
     const pos = labelData.get(label);
     label.graphic.attr({
@@ -851,6 +866,12 @@ function handleAnnotationPositioning(chart) {
   });
 }
 
+/**
+ * Check if two label positions overlap
+ * @param {Object} posA - Position and dimensions of first label
+ * @param {Object} posB - Position and dimensions of second label
+ * @returns {boolean} True if labels collide
+ */
 function checkCollision(posA, posB) {
   return !(
     posA.x + posA.width + CONFIG.SPACING.MIN_HORIZONTAL < posB.x ||
@@ -860,33 +881,39 @@ function checkCollision(posA, posB) {
   );
 }
 
+/**
+ * Resolve collision between two labels by moving them apart
+ * @param {Object} posA - Position of first label
+ * @param {Object} posB - Position of second label
+ * @param {Object} plotBounds - Chart plot area boundaries
+ */
 function resolveCollisionWithoutAnchors(posA, posB, plotBounds) {
+  // Calculate centers of both labels
   const centerA = { x: posA.x + posA.width / 2, y: posA.y + posA.height / 2 };
   const centerB = { x: posB.x + posB.width / 2, y: posB.y + posB.height / 2 };
 
+  // Calculate direction vector between centers
   const dx = centerB.x - centerA.x;
   const dy = centerB.y - centerA.y;
   const distance = Math.sqrt(dx * dx + dy * dy) || 1;
 
-  // Calculate the minimum required distance to avoid collision
+  // Calculate minimum required separation
   const minDistance =
     (posA.width + posB.width) / 2 + CONFIG.SPACING.MIN_HORIZONTAL;
 
-  // If they are overlapping, we need to move them apart
+  // Resolve overlap if needed
   if (distance < minDistance) {
-    const nx = dx / distance; // Normalized x direction
-    const ny = dy / distance; // Normalized y direction
-
-    // Calculate how much to move the labels apart
+    const nx = dx / distance;
+    const ny = dy / distance;
     const overlap = minDistance - distance;
 
-    // Move the labels away from each other
-    posA.x -= (overlap / 2) * nx; // Move label A left/right
-    posA.y -= (overlap / 2) * ny; // Move label A up/down
-    posB.x += (overlap / 2) * nx; // Move label B right/left
-    posB.y += (overlap / 2) * ny; // Move label B down/up
+    // Move labels apart
+    posA.x -= overlap * nx;
+    posA.y -= overlap * ny;
+    posB.x += overlap * nx;
+    posB.y += overlap * ny;
 
-    // Ensure labels stay within plot bounds
+    // Ensure labels remain within bounds
     posA.x = clamp(
       posA.x,
       plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
@@ -910,6 +937,12 @@ function resolveCollisionWithoutAnchors(posA, posB, plotBounds) {
   }
 }
 
+/**
+ * Check if a label position is within plot bounds
+ * @param {Object} pos - Label position and dimensions
+ * @param {Object} bounds - Plot boundaries
+ * @returns {boolean} True if position is within bounds
+ */
 function isWithinBounds(pos, bounds) {
   return (
     pos.x >= bounds.left + CONFIG.SPACING.EDGE_BUFFER &&
@@ -919,30 +952,46 @@ function isWithinBounds(pos, bounds) {
   );
 }
 
+/**
+ * Utility function to clamp a value between min and max
+ * @param {number} value - Value to clamp
+ * @param {number} min - Minimum allowed value
+ * @param {number} max - Maximum allowed value
+ * @returns {number} Clamped value
+ */
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+/**
+ * Initialize annotation handling for chart options
+ * @param {Object} options - Chart configuration options
+ * @returns {Object} Modified options with annotation handling
+ */
 function addAnnotationHandling(options) {
+  // Ensure chart and events objects exist
   if (!options.chart) options.chart = {};
   if (!options.chart.events) options.chart.events = {};
 
+  // Store original render function
   const originalRender = options.chart.events.render || function () {};
 
+  // Add annotation positioning to render event
   options.chart.events.render = function () {
     originalRender.call(this);
     handleAnnotationPositioning(this);
   };
 
+  // Configure annotation labels
   if (options.annotations) {
     options.annotations.forEach((annotation) => {
       if (annotation.labels) {
         annotation.labels.forEach((label) => {
-          label.overflow = "none";
-          label.crop = false;
-          label.allowOverlap = true;
+          label.overflow = "none"; // Don't handle overflow
+          label.crop = false; // Don't crop labels
+          label.allowOverlap = true; // Allow initial overlap
           if (!label.style) label.style = {};
-          label.style.zIndex = 1000;
+          label.style.zIndex = 1000; // Ensure labels are on top
         });
       }
     });
@@ -951,4 +1000,5 @@ function addAnnotationHandling(options) {
   return options;
 }
 
+// Apply annotation handling to chart options
 options = addAnnotationHandling(options);
