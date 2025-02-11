@@ -21,7 +21,10 @@ var options = {
     "#ff90a8",
     "#fadde5",
   ],
-  chart: { style: { fontFamily: "Gordita Regular" }, type: "line" },
+  chart: {
+    style: { fontFamily: "Gordita Regular" },
+    type: "line",
+  },
   credits: { text: "everviz.com", href: "https://www.everviz.com" },
   plotOptions: {
     series: {
@@ -103,6 +106,7 @@ var options = {
       labelOptions: { format: "Insert Text" },
       labels: [
         {
+          draggable: true,
           shape: "evervizCallout",
           point: {
             x: 0.9953941908713693,
@@ -145,7 +149,7 @@ var options = {
           format: "annotation 2",
           uniqueId: "highcharts-jm26opz-352",
           x: 69,
-          y: -89,
+          y: -189,
         },
       ],
       animation: { defer: 0 },
@@ -161,6 +165,7 @@ var options = {
       labelOptions: { format: "Insert Text" },
       labels: [
         {
+          draggable: true,
           shape: "evervizCallout",
           point: {
             x: 1.9773029045643151,
@@ -219,6 +224,7 @@ var options = {
       labelOptions: { format: "Insert Text" },
       labels: [
         {
+          draggable: true,
           shape: "evervizCallout",
           point: {
             x: 3.005767634854772,
@@ -277,6 +283,7 @@ var options = {
       labelOptions: { format: "Insert Text" },
       labels: [
         {
+          draggable: true,
           shape: "evervizCallout",
           point: {
             x: 3.496721991701245,
@@ -335,6 +342,7 @@ var options = {
       labelOptions: { format: "Insert Text" },
       labels: [
         {
+          draggable: true,
           shape: "evervizCallout",
           point: {
             x: 3.0100000000000002,
@@ -393,6 +401,7 @@ var options = {
       labelOptions: { format: "Insert Text" },
       labels: [
         {
+          draggable: true,
           shape: "evervizCallout",
           point: {
             x: 0.9996265560165973,
@@ -451,6 +460,7 @@ var options = {
       labelOptions: { format: "Insert Text" },
       labels: [
         {
+          draggable: true,
           shape: "evervizCallout",
           point: {
             x: 4.008838174273859,
@@ -504,6 +514,67 @@ var options = {
       uniqueId: "highcharts-czu907g-307",
       draggable: null,
     },
+    {
+      langKey: "label",
+      labelOptions: { format: "Insert Text" },
+      labels: [
+        {
+          draggable: true,
+          shape: "evervizCallout",
+          point: {
+            x: 4.042697095435685,
+            y: 2.1724137931034484,
+            xAxis: 0,
+            yAxis: 0,
+          },
+          controlPoints: [
+            {
+              events: {},
+              style: {
+                cursor: "pointer",
+                fill: "#ffffff",
+                stroke: "#000000",
+                "stroke-width": 2,
+              },
+              height: 10,
+              symbol: "triangle-down",
+              visible: false,
+              width: 10,
+              index: 0,
+            },
+            {
+              events: {},
+              style: {
+                cursor: "pointer",
+                fill: "#ffffff",
+                stroke: "#000000",
+                "stroke-width": 2,
+              },
+              height: 10,
+              symbol: "circle",
+              visible: false,
+              width: 10,
+              index: 1,
+            },
+          ],
+          overflow: "none",
+          crop: true,
+          format: "annotation 8",
+          uniqueId: "highcharts-jm26opz-424",
+          everviz: { text: { showKeyOnMobile: { enabled: true } } },
+          style: { fontSize: 11 },
+          x: 96,
+          y: -84,
+        },
+      ],
+      animation: { defer: 0 },
+      events: {},
+      x: 4.042697095435685,
+      y: 2.1724137931034484,
+      id: "227bbc82-aec7-4910-9b43-458d57d20ab1",
+      uniqueId: "highcharts-czu907g-312",
+      draggable: null,
+    },
   ],
   data: {
     csv: '"Category";"A";"B";"C"\n0;4;6;3\n1;3;2;4\n2;5;4;3\n3;6;4;1\n4;2;4;6\n5;3;2;4',
@@ -520,6 +591,7 @@ var options = {
   },
   stockTools: { gui: { enabled: false } },
 };
+
 var optionsStub;
 var templateDataSettings = {};
 
@@ -558,11 +630,7 @@ function modifyOptions() {
 
 var chart;
 var encodedUrl = encodeURI("https://https://app.everviz.com//show/dyyeqorPH");
-let initialPlotWidth = null;
-let initialPlotHeight = null;
-let lastPlotWidth = null;
-let lastPlotHeight = null;
-let resizingDirection = null;
+
 modifyOptions();
 
 if (
@@ -599,34 +667,6 @@ if (Highcharts.Annotation) {
   };
 }
 
-function detectResizeDirection(chart) {
-  let currentPlotWidth = chart.plotWidth;
-  let currentPlotHeight = chart.plotHeight;
-
-  if (!initialPlotWidth || !initialPlotHeight) {
-    // Store the initial plot size when the chart first renders
-    initialPlotWidth = currentPlotWidth;
-    initialPlotHeight = currentPlotHeight;
-  }
-
-  if (
-    currentPlotWidth !== lastPlotWidth &&
-    currentPlotHeight !== lastPlotHeight
-  ) {
-    resizingDirection = "both"; // Both width and height changed
-  } else if (currentPlotWidth !== lastPlotWidth) {
-    resizingDirection = "width"; // Only width changed
-  } else if (currentPlotHeight !== lastPlotHeight) {
-    resizingDirection = "height"; // Only height changed
-  } else {
-    resizingDirection = null; // No change detected
-  }
-
-  // Update last known plot dimensions
-  lastPlotWidth = currentPlotWidth;
-  lastPlotHeight = currentPlotHeight;
-}
-
 function resizeChart(chart) {
   var setHeight = function () {
     chart.setSize(window.innerWidth, window.innerHeight);
@@ -642,8 +682,6 @@ function resizeChart(chart) {
         "*"
       );
     }
-
-    detectResizeDirection(chart);
 
     postParentMessage("everviz-dimensions", {
       width: document.body.scrollWidth,
@@ -701,13 +739,13 @@ window.HighchartsCloud = {
 // Define configuration constants for annotation positioning
 const CONFIG = {
   SPACING: {
-    MIN_VERTICAL: 10,
-    MIN_HORIZONTAL: 10,
-    EDGE_BUFFER: 10,
+    MIN_VERTICAL: 10, // Minimum vertical space between annotations
+    MIN_HORIZONTAL: 10, // Minimum horizontal space between annotations
+    EDGE_BUFFER: 10, // Minimum space from plot edges
   },
   COLLISION: {
-    MAX_ITERATIONS: 50,
-    MOVE_STEP: 10,
+    MAX_ITERATIONS: 5000, // Maximum attempts to resolve collisions
+    MOVE_STEP: 10, // Distance to move labels during collision resolution
     DIRECTIONS: [
       { x: 1, y: 0 }, // Right movement
       { x: -1, y: 0 }, // Left movement
@@ -721,26 +759,20 @@ const CONFIG = {
   },
 };
 
-/**
- * Main function to handle positioning of annotations on the chart
- * @param {Object} chart - The chart object containing annotations
- */
+// Functions for handling positioning, collision detection, and adjustments
 function handleAnnotationPositioning(chart) {
-  // Exit if no annotations exist
   if (!chart?.annotations?.length) return;
 
-  // Define the boundaries of the plot area
   const plotBounds = {
     left: chart.plotLeft,
     right: chart.plotLeft + chart.plotWidth,
     top: chart.plotTop,
     bottom: chart.plotTop + chart.plotHeight,
   };
-  // Extract all label objects from annotations and filter out invalid ones
+
   const labels = chart.annotations
     .reduce((acc, annotation) => acc.concat(annotation.labels), [])
     .filter((label) => label?.graphic);
-  console.log("chart.annotations", labels);
 
   const labelData = new Map(
     labels.map((label) => {
@@ -753,25 +785,24 @@ function handleAnnotationPositioning(chart) {
           y: pos.y,
           width: bbox.width,
           height: bbox.height,
+          anchorX: pos.anchorX, // Anchor point X (fixed)
+          anchorY: pos.anchorY, // Anchor point Y (fixed)
         },
       ];
     })
   );
 
-  // Main collision resolution loop
   for (
-    let iteration = 1;
-    iteration <= CONFIG.COLLISION.MAX_ITERATIONS;
+    let iteration = 0;
+    iteration < CONFIG.COLLISION.MAX_ITERATIONS;
     iteration++
   ) {
     let hasCollision = false;
-
-    // Check each label against all other labels
     for (let i = 0; i < labels.length; i++) {
       const labelA = labels[i];
       const posA = labelData.get(labelA);
 
-      // Ensure label stays within plot bounds
+      // Ensure the label stays within plot bounds
       posA.x = clamp(
         posA.x,
         plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
@@ -783,16 +814,13 @@ function handleAnnotationPositioning(chart) {
         plotBounds.bottom - posA.height - CONFIG.SPACING.EDGE_BUFFER
       );
 
-      // Compare with all subsequent labels
       for (let j = i + 1; j < labels.length; j++) {
         const labelB = labels[j];
         const posB = labelData.get(labelB);
 
-        // If collision detected, attempt to resolve
         if (checkCollision(posA, posB)) {
           hasCollision = true;
 
-          // Try different directions to resolve collision
           let resolved = false;
           for (const dir of CONFIG.COLLISION.DIRECTIONS) {
             const newPosA = {
@@ -800,9 +828,10 @@ function handleAnnotationPositioning(chart) {
               y: posA.y + dir.y * CONFIG.COLLISION.MOVE_STEP,
               width: posA.width,
               height: posA.height,
+              anchorX: posA.anchorX, // Keep anchor point fixed
+              anchorY: posA.anchorY, // Keep anchor point fixed
             };
 
-            // Check if new position is valid
             if (
               isWithinBounds(newPosA, plotBounds) &&
               !checkCollision(newPosA, posB)
@@ -814,19 +843,17 @@ function handleAnnotationPositioning(chart) {
             }
           }
 
-          // Use fallback resolution if directional movement failed
           if (!resolved) {
-            resolveCollisionWithoutAnchors(posA, posB, plotBounds, chart);
-            // console.log("Collision resolved without anchors", posA, posB);
+            resolveCollisionWithoutAnchors(posA, posB, plotBounds);
           }
         }
       }
     }
-    // Exit loop if no collisions found
+
     if (!hasCollision) break;
   }
 
-  // Update final positions of all labels
+  // Apply the final positions to the labels
   labels.forEach((label) => {
     const pos = labelData.get(label);
     label.graphic.attr({
@@ -838,12 +865,6 @@ function handleAnnotationPositioning(chart) {
   });
 }
 
-/**
- * Check if two label positions overlap
- * @param {Object} posA - Position and dimensions of first label
- * @param {Object} posB - Position and dimensions of second label
- * @returns {boolean} True if labels collide
- */
 function checkCollision(posA, posB) {
   return !(
     posA.x + posA.width + CONFIG.SPACING.MIN_HORIZONTAL < posB.x ||
@@ -852,17 +873,16 @@ function checkCollision(posA, posB) {
     posB.y + posB.height + CONFIG.SPACING.MIN_VERTICAL < posA.y
   );
 }
+let redraw = false;
 
-/**
- * Resolve collision between two labels by moving them apart
- * @param {Object} posA - Position of first label
- * @param {Object} posB - Position of second label
- * @param {Object} plotBounds - Chart plot area boundaries
- */
-function resolveCollisionWithoutAnchors(posA, posB, abc, chart) {
-  const dx = posB.x - posA.x;
-  const dy = posB.y - posA.y;
+function resolveCollisionWithoutAnchors(posA, posB, plotBounds) {
+  const centerA = { x: posA.x + posA.width / 2, y: posA.y + posA.height / 2 };
+  const centerB = { x: posB.x + posB.width / 2, y: posB.y + posB.height / 2 };
+
+  const dx = centerB.x - centerA.x;
+  const dy = centerB.y - centerA.y;
   const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+
   const minDistance =
     (posA.width + posB.width) / 2 + CONFIG.SPACING.MIN_HORIZONTAL;
 
@@ -871,66 +891,53 @@ function resolveCollisionWithoutAnchors(posA, posB, abc, chart) {
     const ny = dy / distance;
     const overlap = minDistance - distance;
 
-    if (resizingDirection === "width") {
-      posA.x -= overlap * nx;
-      posB.x += overlap * nx;
-    } else if (resizingDirection === "height") {
-      posA.y -= overlap * ny;
-      posB.y += overlap * ny;
-    }
+    console.log("posA", posA);
+    console.log("posB", posB);
 
-    // Update annotation label positions in Highcharts
-    // console.log("chart", chart);
-    // chart?.annotations?.forEach((annotation) => {
-    //   annotation.labels.forEach((label) => {
-    //     console.log("label", label);
-    //     if (label.options.point) {
-    //       if (resizingDirection === "width") {
-    //         label.graphic.alighAttr.x += overlap * nx;
-    //       } else if (resizingDirection === "height") {
-    //         label.graphic.alighAttr.y -= overlap * ny;
-    //       }
-    //       label.redraw();
-    //     }
-    //   });
-    // });
+    // Move only the label, not the anchor (anchor stays fixed)
+    //posA.x -= overlap * nx;
+    posA.y -= overlap * ny;
+    //posB.x += overlap * nx;
+    posB.y += overlap * ny;
+    posA.anchorX = posA.anchorX; // Do NOT modify anchorX
+    posA.anchorY = posA.anchorY; // Do NOT modify anchorY
+    posB.anchorX = posB.anchorX; // Do NOT modify anchorX
+    posB.anchorY = posB.anchorY; // Do NOT modify anchorY
 
-    // // Ensure labels stay within plot bounds
-    // posA.x = clamp(
-    //   posA.x,
-    //   plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
-    //   plotBounds.right - posA.width - CONFIG.SPACING.EDGE_BUFFER
-    // );
-    // posA.y = clamp(
-    //   posA.y,
-    //   plotBounds.top + CONFIG.SPACING.EDGE_BUFFER,
-    //   plotBounds.bottom - posA.height - CONFIG.SPACING.EDGE_BUFFER
-    // );
-    // posB.x = clamp(
-    //   posB.x,
-    //   plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
-    //   plotBounds.right - posB.width - CONFIG.SPACING.EDGE_BUFFER
-    // );
-    // posB.y = clamp(
-    //   posB.y,
-    //   plotBounds.top + CONFIG.SPACING.EDGE_BUFFER,
-    //   plotBounds.bottom - posB.height - CONFIG.SPACING.EDGE_BUFFER
-    // );
+    // Ensure the positions stay within bounds
+    posA.x = clamp(
+      posA.x,
+      plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
+      plotBounds.right - posA.width - CONFIG.SPACING.EDGE_BUFFER
+    );
+    posA.y = clamp(
+      posA.y,
+      plotBounds.top + CONFIG.SPACING.EDGE_BUFFER,
+      plotBounds.bottom - posA.height - CONFIG.SPACING.EDGE_BUFFER
+    );
+    posB.x = clamp(
+      posB.x,
+      plotBounds.left + CONFIG.SPACING.EDGE_BUFFER,
+      plotBounds.right - posB.width - CONFIG.SPACING.EDGE_BUFFER
+    );
+    posB.y = clamp(
+      posB.y,
+      plotBounds.top + CONFIG.SPACING.EDGE_BUFFER,
+      plotBounds.bottom - posB.height - CONFIG.SPACING.EDGE_BUFFER
+    );
+
+    console.log("posA 2", posA);
+    console.log("posB 2", posB);
+    //chart.redraw();
   }
 }
 
-/**
- * Check if a label position is within plot bounds
- * @param {Object} pos - Label position and dimensions
- * @param {Object} bounds - Plot boundaries
- * @returns {boolean} True if position is within bounds
- */
 function isWithinBounds(pos, bounds) {
   return (
     pos.x >= bounds.left + CONFIG.SPACING.EDGE_BUFFER &&
     pos.x + pos.width <= bounds.right - CONFIG.SPACING.EDGE_BUFFER &&
     pos.y >= bounds.top + CONFIG.SPACING.EDGE_BUFFER &&
-    pos.y + pos.height <= bounds.bottom - CONFIG.SPACING.EDGE_BUFFER
+    pos.y + +pos.height <= bounds.bottom - CONFIG.SPACING.EDGE_BUFFER
   );
 }
 
@@ -975,6 +982,7 @@ function addAnnotationHandling(options) {
           if (!label.style) label.style = {};
           label.style.zIndex = 1000; // Ensure labels are on top
         });
+        annotation.draggable = true; // Disable dragging
       }
     });
   }
